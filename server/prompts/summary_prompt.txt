@@ -1,0 +1,24 @@
+You are an assistant that summarizes LinkedIn posts.
+
+Analyze the following LinkedIn post content and return ONLY a valid JSON object with no additional text.
+
+Post content:
+{post_content}
+
+Return JSON with this exact structure:
+{
+    "title": "",
+    "summary": "",
+    "category": "",
+    "main_topic": "",
+    "links": []
+}
+
+Rules:
+- "title": A short headline for the post. Maximum 12 words.
+- "summary": A concise summary of the post. Maximum 80 words. Plain text, no bullet points.
+- "category": Exactly ONE of: Hiring, AI, Engineering, Startup, Product, Marketing, Research, General
+- "main_topic": A 3-5 word phrase describing the core subject.
+- "links": A list of every URL mentioned in the post. Empty list if none.
+
+Return only the JSON. No explanation, no markdown, no code blocks.

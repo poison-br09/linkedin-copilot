@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>LinkedIn Copilot</title>
+  <meta name="description" content="LinkedIn post monitoring and AI summarization"/>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+</head>
+<body>
+<div class="gradient-bg"></div>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">🤖</div>
+    <h1 class="mb-8">LinkedIn Copilot</h1>
+    <p class="mb-24">Sign in to your account to continue.</p>
+    <div id="login-alert" class="alert alert-error hidden"></div>
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label class="form-label" for="email">Email</label>
+        <input id="email" type="email" class="form-input" placeholder="you@company.com" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input id="password" type="password" class="form-input" placeholder="••••••••" required/>
+      </div>
+      <button id="login-btn" type="submit" class="btn btn-primary btn-full">Sign in</button>
+    </form>
+  </div>
+</div>
+<script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+.env
+sessions/
+service_account.json
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.DS_Store
+*.log
+data/

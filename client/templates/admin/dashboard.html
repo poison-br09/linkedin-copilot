@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Admin Dashboard — LinkedIn Copilot</title>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">🤖</div>
+      <span class="sidebar-logo-text">Copilot</span>
+    </div>
+    <span class="nav-section-label">Admin</span>
+    <a class="nav-item active" href="/admin">👥 Users</a>
+    <div class="nav-divider"></div>
+    <div class="sidebar-bottom">
+      <button class="nav-item" onclick="logout()">🚪 Sign out</button>
+    </div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <h2>User Management</h2>
+      <button class="btn btn-primary btn-sm" onclick="openModal('create-modal')">+ Add User</button>
+    </div>
+    <div class="page-content">
+      <div id="admin-alert" class="alert hidden"></div>
+      <div class="grid-3 mb-24">
+        <div class="stat-card">
+          <div class="stat-value" id="user-count">—</div>
+          <div class="stat-label">Active Users</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="mb-16">All Users</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>User ID</th><th>LinkedIn</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="users-tbody"><tr><td colspan="5" class="text-muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="create-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('create-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Add New User</h2>
+      <button class="modal-close" onclick="closeModal('create-modal')">✕</button>
+    </div>
+    <form onsubmit="createUser(event)">
+      <div class="form-group">
+        <label class="form-label">Display Name</label>
+        <input id="new-name" type="text" class="form-input" placeholder="Jane Doe" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input id="new-email" type="email" class="form-input" placeholder="jane@company.com" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Temporary Password</label>
+        <input id="new-password" type="password" class="form-input" placeholder="min 8 chars" required/>
+      </div>
+      <button id="create-btn" type="submit" class="btn btn-primary btn-full">Create User</button>
+    </form>
+  </div>
+</div>
+<script src="/static/js/app.js"></script>
+<script>loadAdminDashboard();</script>
+</body>
+</html>
