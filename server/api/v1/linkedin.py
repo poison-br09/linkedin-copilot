@@ -57,7 +57,8 @@ async def connect_linkedin(
     from playwright.async_api import async_playwright
 
     user_id = user["id"]
-    pw = await async_playwright().__aenter__()
+    pw_manager = async_playwright()
+    pw = await pw_manager.__aenter__()
 
     try:
         browser = await pw.chromium.launch(headless=True)
@@ -103,7 +104,7 @@ async def connect_linkedin(
         # ── Check for 2FA page ────────────────────────────────────────────
         if "checkpoint" in current_url or "challenge" in current_url:
             session_id = secrets.token_urlsafe(16)
-            _pending_sessions[session_id] = (pw, browser, context, page, user_id)
+            _pending_sessions[session_id] = (pw_manager, browser, context, page, user_id)
             logger.info("2FA or phone verification required for user %s. Pending session: %s", user_id, session_id)
             return ConnectResponse(
                 success=False,
@@ -116,7 +117,7 @@ async def connect_linkedin(
         if "feed" in current_url or "linkedin.com/in/" in current_url or current_url == "https://www.linkedin.com/":
             await save_context(context, user_id)
             await browser.close()
-            await pw.__aexit__(None, None, None)
+            await pw_manager.__aexit__(None, None, None)
 
             update_profile(user_id, {"session_ready": True, "linkedin_email": body.linkedin_email})
             register_user_jobs(user_id)
@@ -125,7 +126,7 @@ async def connect_linkedin(
 
         # ── Login failed (wrong credentials, captcha, etc.) ───────────────
         await browser.close()
-        await pw.__aexit__(None, None, None)
+        await pw_manager.__aexit__(None, None, None)
         raise HTTPException(status_code=400, detail="Login failed. Check your credentials.")
 
     except HTTPException:
@@ -133,7 +134,7 @@ async def connect_linkedin(
     except Exception as exc:
         logger.error("LinkedIn connect error for user %s: %s", user_id, exc)
         try:
-            await pw.__aexit__(None, None, None)
+            await pw_manager.__aexit__(None, None, None)
         except Exception:
             pass
         raise HTTPException(status_code=500, detail=f"Login error: {exc}")
@@ -151,7 +152,7 @@ async def verify_otp(
     if not pending:
         raise HTTPException(status_code=400, detail="Invalid or expired pending session.")
 
-    pw, browser, context, page, session_user_id = pending
+    pw_manager, browser, context, page, session_user_id = pending
 
     if session_user_id != user_id:
         raise HTTPException(status_code=403, detail="Session does not belong to you.")
@@ -162,7 +163,7 @@ async def verify_otp(
         if "feed" in current_url or "linkedin.com/in/" in current_url or current_url == "https://www.linkedin.com/":
             await save_context(context, user_id)
             await browser.close()
-            await pw.__aexit__(None, None, None)
+            await pw_manager.__aexit__(None, None, None)
             if body.pending_session_id in _pending_sessions:
                 del _pending_sessions[body.pending_session_id]
 
@@ -189,7 +190,7 @@ async def verify_otp(
         if "feed" in current_url or "linkedin.com/in/" in current_url or current_url == "https://www.linkedin.com/":
             await save_context(context, user_id)
             await browser.close()
-            await pw.__aexit__(None, None, None)
+            await pw_manager.__aexit__(None, None, None)
             if body.pending_session_id in _pending_sessions:
                 del _pending_sessions[body.pending_session_id]
 
@@ -201,12 +202,6 @@ async def verify_otp(
             status_code=400, 
             detail="Verification still pending. If using phone approval, make sure you tapped 'Yes, it's me' and submit again."
         )
-
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error("OTP verification error: %s", exc)
-        raise HTTPException(status_code=500, detail=f"OTP error: {exc}")
 
     except HTTPException:
         raise
