@@ -3,7 +3,7 @@ from typing import Optional
 from config import settings
 from storage.supabase import service_client
 
-TABLE = "message_queue"
+TABLE = "linkedin_message_queue"
 
 
 class MessageStatus:

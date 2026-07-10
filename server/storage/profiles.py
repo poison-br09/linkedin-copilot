@@ -1,7 +1,7 @@
 from typing import Optional
 from storage.supabase import service_client
 
-TABLE = "profiles"
+TABLE = "linkedin_profiles"
 
 
 def get_profile(user_id: str) -> Optional[dict]:
