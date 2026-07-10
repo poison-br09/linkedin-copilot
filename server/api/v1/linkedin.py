@@ -89,7 +89,13 @@ async def connect_linkedin(
 
         await page.fill('input[type="email"]:visible', body.linkedin_email)
         await page.fill('input[type="password"]:visible', body.linkedin_password)
-        await page.click('button[type="submit"]:visible')
+        
+        # Click the Sign in button using exact role locator, with fallback to visible submit
+        try:
+            await page.get_by_role("button", name="Sign in", exact=True).click()
+        except Exception:
+            await page.click('button[type="submit"]:visible')
+            
         await page.wait_for_timeout(4000)
 
         current_url = page.url
