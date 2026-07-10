@@ -72,7 +72,7 @@ async def connect_linkedin(
         
         # Wait for the login fields to appear (supporting multiple common selectors)
         try:
-            await page.wait_for_selector("#username, input[name='session_key']", timeout=15000)
+            await page.wait_for_selector('input[type="email"]:visible', timeout=15000)
         except Exception:
             current_url = page.url
             logger.error("LinkedIn login elements not found. Page URL: %s", current_url)
@@ -87,12 +87,9 @@ async def connect_linkedin(
                 detail=f"Login page did not load correctly. (URL: {current_url})"
             )
 
-        username_selector = "#username" if await page.query_selector("#username") else "input[name='session_key']"
-        password_selector = "#password" if await page.query_selector("#password") else "input[name='session_password']"
-
-        await page.fill(username_selector, body.linkedin_email)
-        await page.fill(password_selector, body.linkedin_password)
-        await page.click('[type="submit"]')
+        await page.fill('input[type="email"]:visible', body.linkedin_email)
+        await page.fill('input[type="password"]:visible', body.linkedin_password)
+        await page.click('button[type="submit"]:visible')
         await page.wait_for_timeout(4000)
 
         current_url = page.url
@@ -101,12 +98,12 @@ async def connect_linkedin(
         if "checkpoint" in current_url or "challenge" in current_url:
             session_id = secrets.token_urlsafe(16)
             _pending_sessions[session_id] = (pw, browser, context, page, user_id)
-            logger.info("2FA required for user %s. Pending session: %s", user_id, session_id)
+            logger.info("2FA or phone verification required for user %s. Pending session: %s", user_id, session_id)
             return ConnectResponse(
                 success=False,
                 requires_otp=True,
                 pending_session_id=session_id,
-                message="2FA required. Please submit your OTP.",
+                message="Security check required. Please approve the prompt on your phone or enter the OTP.",
             )
 
         # ── Successful login (no 2FA) ─────────────────────────────────────
@@ -141,7 +138,7 @@ async def verify_otp(
     body: OTPRequest,
     user: Annotated[dict, Depends(get_current_user)],
 ):
-    """Submit the OTP for a pending 2FA LinkedIn login."""
+    """Submit the OTP or verify phone approval for a pending 2FA LinkedIn login."""
     user_id = user["id"]
     pending = _pending_sessions.get(body.pending_session_id)
 
@@ -154,28 +151,56 @@ async def verify_otp(
         raise HTTPException(status_code=403, detail="Session does not belong to you.")
 
     try:
-        # Find the OTP input and submit
-        otp_input = await page.query_selector("input[name='pin'], input[autocomplete='one-time-code'], #input__phone_verification_pin")
-        if not otp_input:
-            raise HTTPException(status_code=400, detail="OTP input not found on page.")
-
-        await otp_input.fill(body.otp)
-        await page.click('[type="submit"]')
-        await page.wait_for_timeout(3000)
-
+        # Check if the page has already redirected to the feed (phone notification approved)
         current_url = page.url
-        if "checkpoint" in current_url or "challenge" in current_url:
-            raise HTTPException(status_code=400, detail="OTP verification failed.")
+        if "feed" in current_url or "linkedin.com/in/" in current_url or current_url == "https://www.linkedin.com/":
+            await save_context(context, user_id)
+            await browser.close()
+            await pw.__aexit__(None, None, None)
+            if body.pending_session_id in _pending_sessions:
+                del _pending_sessions[body.pending_session_id]
 
-        await save_context(context, user_id)
-        await browser.close()
-        await pw.__aexit__(None, None, None)
-        del _pending_sessions[body.pending_session_id]
+            update_profile(user_id, {"session_ready": True})
+            register_user_jobs(user_id)
+            return ConnectResponse(success=True, message="LinkedIn connected successfully via phone approval.")
 
-        update_profile(user_id, {"session_ready": True})
-        register_user_jobs(user_id)
+        # Otherwise, try to fill the OTP if provided
+        if body.otp:
+            otp_input = await page.query_selector("input[name='pin'], input[autocomplete='one-time-code'], #input__phone_verification_pin")
+            if not otp_input:
+                # If there's no input but user submitted a code, check if we're still waiting for phone approval
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Verification code input field not found. If you approved on your phone, please try again."
+                )
 
-        return ConnectResponse(success=True, message="LinkedIn connected successfully.")
+            await otp_input.fill(body.otp)
+            await page.click('button[type="submit"]:visible')
+            await page.wait_for_timeout(4000)
+
+        # Re-check if successfully logged in now
+        current_url = page.url
+        if "feed" in current_url or "linkedin.com/in/" in current_url or current_url == "https://www.linkedin.com/":
+            await save_context(context, user_id)
+            await browser.close()
+            await pw.__aexit__(None, None, None)
+            if body.pending_session_id in _pending_sessions:
+                del _pending_sessions[body.pending_session_id]
+
+            update_profile(user_id, {"session_ready": True})
+            register_user_jobs(user_id)
+            return ConnectResponse(success=True, message="LinkedIn connected successfully.")
+
+        raise HTTPException(
+            status_code=400, 
+            detail="Verification still pending. If using phone approval, make sure you tapped 'Yes, it's me' and submit again."
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("OTP verification error: %s", exc)
+        raise HTTPException(status_code=500, detail=f"OTP error: {exc}")
 
     except HTTPException:
         raise
