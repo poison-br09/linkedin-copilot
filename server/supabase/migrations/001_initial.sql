@@ -85,7 +85,3 @@ CREATE POLICY "users_own_profile" ON public.linkedin_profiles
 -- Users can read only their own queue rows
 CREATE POLICY "users_own_queue" ON public.linkedin_message_queue
     FOR SELECT USING (auth.uid() = user_id);
-
--- ── NOTE: Background scheduler uses SERVICE ROLE KEY ────────────
--- Service role bypasses RLS automatically.
--- Never expose the service role key to the frontend.

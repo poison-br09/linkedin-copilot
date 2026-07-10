@@ -61,14 +61,39 @@ async def connect_linkedin(
 
     try:
         browser = await pw.chromium.launch(headless=True)
-        context = await browser.new_context()
+        # Use a realistic desktop browser User-Agent and viewport to avoid immediate captcha/bot detection
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 720}
+        )
         page = await context.new_page()
 
         await page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
-        await page.fill("#username", body.linkedin_email)
-        await page.fill("#password", body.linkedin_password)
+        
+        # Wait for the login fields to appear (supporting multiple common selectors)
+        try:
+            await page.wait_for_selector("#username, input[name='session_key']", timeout=15000)
+        except Exception:
+            current_url = page.url
+            logger.error("LinkedIn login elements not found. Page URL: %s", current_url)
+            # Check if we were redirected to a security checkpoint/captcha immediately
+            if "checkpoint" in current_url or "challenge" in current_url:
+                raise HTTPException(
+                    status_code=400,
+                    detail="LinkedIn triggered a security check/captcha. Please try connecting again or try from a different network."
+                )
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Login page did not load correctly. (URL: {current_url})"
+            )
+
+        username_selector = "#username" if await page.query_selector("#username") else "input[name='session_key']"
+        password_selector = "#password" if await page.query_selector("#password") else "input[name='session_password']"
+
+        await page.fill(username_selector, body.linkedin_email)
+        await page.fill(password_selector, body.linkedin_password)
         await page.click('[type="submit"]')
-        await page.wait_for_timeout(3000)
+        await page.wait_for_timeout(4000)
 
         current_url = page.url
 
