@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from typing import Optional
 
 from google.oauth2 import service_account
@@ -30,18 +31,30 @@ SHEET_COLUMNS = [
 
 
 def _build_service():
-    creds = service_account.Credentials.from_service_account_file(
-        settings.google_service_account_path,
-        scopes=SCOPES,
-    )
-    return build("sheets", "v4", credentials=creds)
+    if not settings.google_sheet_id or not os.path.exists(settings.google_service_account_path):
+        return None
+    try:
+        creds = service_account.Credentials.from_service_account_file(
+            settings.google_service_account_path,
+            scopes=SCOPES,
+        )
+        return build("sheets", "v4", credentials=creds)
+    except Exception as e:
+        logger.error("Failed to build Google Sheets service: %s", e)
+        return None
 
 
 def ensure_header(sheet_id: Optional[str] = None) -> None:
     """Write the header row if the sheet is empty. Call once at startup."""
     sheet_id = sheet_id or settings.google_sheet_id
+    if not sheet_id:
+        logger.info("Google Sheets integration disabled (no sheet ID configured).")
+        return
     try:
         svc = _build_service()
+        if not svc:
+            logger.info("Google Sheets service could not be initialized.")
+            return
         result = (
             svc.spreadsheets()
             .values()
@@ -69,6 +82,9 @@ def append_row(data: dict, sheet_id: Optional[str] = None) -> None:
         author, author_headline, category, title, summary, links, post_url
     """
     sheet_id = sheet_id or settings.google_sheet_id
+    if not sheet_id:
+        logger.info("Google Sheets integration disabled. Skipping row append.")
+        return
     links_str = ", ".join(data.get("links") or [])
     row = [
         data.get("receiver", ""),
@@ -86,6 +102,9 @@ def append_row(data: dict, sheet_id: Optional[str] = None) -> None:
     ]
     try:
         svc = _build_service()
+        if not svc:
+            logger.info("Google Sheets service not available. Skipping row append.")
+            return
         svc.spreadsheets().values().append(
             spreadsheetId=sheet_id,
             range="Sheet1!A1",
@@ -96,4 +115,5 @@ def append_row(data: dict, sheet_id: Optional[str] = None) -> None:
         logger.info("Row appended to sheet for event_urn=%s", data.get("event_urn"))
     except HttpError as e:
         logger.error("Failed to append row to sheet: %s", e)
-        raise
+        # Don't crash processing if Google Sheet append fails, just log it
+

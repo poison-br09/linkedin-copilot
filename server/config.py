@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # App
     secret_key: str
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = 8001
     debug: bool = False
 
     # NVIDIA Nemotron
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     nvidia_model: str = "nvidia/llama-3.1-nemotron-70b-instruct"
 
     # Google Sheets (shared, one sheet for all users)
-    google_sheet_id: str
+    google_sheet_id: str = ""
     google_service_account_path: str = "./service_account.json"
 
     # Scheduler

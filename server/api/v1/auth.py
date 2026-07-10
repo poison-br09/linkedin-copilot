@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 
 from storage.supabase import get_anon_client
+from api.v1.deps import get_current_profile
 
 router = APIRouter()
+
 
 
 class LoginRequest(BaseModel):
@@ -48,3 +50,14 @@ async def login(body: LoginRequest):
         user_id=str(response.user.id),
         email=response.user.email,
     )
+
+
+@router.get("/me", summary="Get current logged-in user profile")
+async def get_me(profile: Annotated[dict, Depends(get_current_profile)]):
+    return {
+        "id": str(profile.get("id")),
+        "role": profile.get("role", "user"),
+        "display_name": profile.get("display_name"),
+        "linkedin_email": profile.get("linkedin_email"),
+        "is_active": profile.get("is_active", True),
+    }

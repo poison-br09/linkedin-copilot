@@ -24,6 +24,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from fastapi.middleware.cors import CORSMiddleware
+
 from api.v1 import router as v1_router
 from config import settings
 from scheduler.jobs import scheduler, bootstrap_all_users
@@ -66,6 +68,21 @@ app = FastAPI(
     redoc_url="/redoc" if settings.debug else None,
     lifespan=lifespan,
 )
+
+# Enable CORS for frontend API calls
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # ── Static files and templates ─────────────────────────────────────────────
 # server/ → ../client/ (resolved relative to this file for robustness)
