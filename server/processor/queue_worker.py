@@ -85,5 +85,5 @@ def process_user_queue(user_id: str) -> None:
             queue_db.mark_failed(row_id)
             continue
 
-        queue_db.mark_done(row_id)
+        queue_db.mark_done(row_id, result)
         logger.info("Done: event_urn=%s", event_urn)

@@ -65,13 +65,19 @@ def mark_processing(row_id: int) -> None:
     ).eq("id", row_id).execute()
 
 
-def mark_done(row_id: int) -> None:
-    service_client.table(TABLE).update(
-        {
-            "status": MessageStatus.DONE,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-        }
-    ).eq("id", row_id).execute()
+def mark_done(row_id: int, result: Optional[dict] = None) -> None:
+    update_data = {
+        "status": MessageStatus.DONE,
+        "processed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if result:
+        # Fetch current raw_data to merge
+        res = service_client.table(TABLE).select("raw_data").eq("id", row_id).single().execute()
+        raw_data = res.data.get("raw_data") or {} if res.data else {}
+        raw_data["processed_result"] = result
+        update_data["raw_data"] = raw_data
+
+    service_client.table(TABLE).update(update_data).eq("id", row_id).execute()
 
 
 def mark_failed(row_id: int) -> None:

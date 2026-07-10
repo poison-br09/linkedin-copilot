@@ -24,3 +24,22 @@ async def get_queue(
 ):
     rows = get_user_queue(user["id"], limit=limit, offset=offset)
     return {"rows": rows, "count": len(rows)}
+
+
+@router.post("/trigger-watch", summary="Manually trigger conversation scrape")
+async def trigger_watch(user: Annotated[dict, Depends(get_current_user)]):
+    from collector.watcher import watch
+    from storage.profiles import get_profile
+    profile = get_profile(user["id"])
+    if not profile or not profile.get("session_ready"):
+        return {"success": False, "message": "LinkedIn session not ready."}
+    conversation_url = profile.get("conversation_url", "")
+    new_count = await watch(user["id"], conversation_url)
+    return {"success": True, "new_messages_queued": new_count}
+
+
+@router.post("/trigger-process", summary="Manually trigger queue processing")
+async def trigger_process(user: Annotated[dict, Depends(get_current_user)]):
+    from processor.queue_worker import process_user_queue
+    process_user_queue(user["id"])
+    return {"success": True, "message": "Queue processing triggered."}
