@@ -70,7 +70,17 @@ async def extract_messages(page: Page) -> list[dict]:
 
             # Check if message contains an embedded post card
             post_card = await el.query_selector(POST_CARD)
-            if not post_card:
+            
+            # Check for regular text message containing a direct LinkedIn post URL
+            msg_body_el = await el.query_selector(".msg-s-event-listitem__body, .msg-s-event-listitem__copy")
+            msg_text = await msg_body_el.inner_text() if msg_body_el else ""
+            
+            post_url = None
+            url_match = re.search(r"(https?://www\.linkedin\.com/(?:feed/update|posts)/[^\s\)\]\"']+)", msg_text)
+            if url_match:
+                post_url = url_match.group(1)
+
+            if not post_card and not post_url:
                 continue
 
             # Extract sender (the person who shared in the DM)
@@ -81,8 +91,28 @@ async def extract_messages(page: Page) -> list[dict]:
             ts_el = await el.query_selector(MSG_TIMESTAMP)
             timestamp = await ts_el.get_attribute("datetime") if ts_el else ""
 
-            # Extract post data from the card
-            post_data = await _extract_post_card(post_card)
+            if post_card:
+                # Extract post data from the card
+                post_data = await _extract_post_card(post_card)
+            else:
+                # Construct post data from plain text link
+                activity_urn = None
+                urn_match = re.search(r"activity:(\d+)", post_url)
+                if urn_match:
+                    activity_urn = f"urn:li:activity:{urn_match.group(1)}"
+                else:
+                    post_id_match = re.search(r"-(\d+)", post_url)
+                    if post_id_match:
+                        activity_urn = f"urn:li:activity:{post_id_match.group(1)}"
+                
+                post_data = {
+                    "activity_urn": activity_urn or f"urn:li:text_link:{event_urn}",
+                    "author": "Link Shared in DM",
+                    "author_headline": "",
+                    "post_body": "Post link shared as text: " + post_url,
+                    "post_url": post_url,
+                    "urls": [post_url],
+                }
 
             messages.append(
                 {
