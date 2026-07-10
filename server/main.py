@@ -19,11 +19,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.v1 import router as v1_router
@@ -64,8 +60,8 @@ app = FastAPI(
     title="LinkedIn Copilot",
     version="1.0.0",
     description="Multi-tenant LinkedIn post monitoring and summarization service.",
-    docs_url="/docs" if settings.debug else None,
-    redoc_url="/redoc" if settings.debug else None,
+    docs_url="/docs",
+    redoc_url="/redoc",
     lifespan=lifespan,
 )
 
@@ -84,32 +80,8 @@ app.add_middleware(
 )
 
 
-# ── Static files and templates ─────────────────────────────────────────────
-# server/ → ../client/ (resolved relative to this file for robustness)
-_BASE = Path(__file__).parent.parent / "client"
-app.mount("/static", StaticFiles(directory=str(_BASE / "static")), name="static")
-templates = Jinja2Templates(directory=str(_BASE / "templates"))
-
-
 # ── API routes ───────────────────────────────────────────────────────────────
 app.include_router(v1_router)
-
-
-# ── Frontend routes ──────────────────────────────────────────────────────────
-
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-async def index(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
-
-
-@app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
-async def user_dashboard(request: Request):
-    return templates.TemplateResponse("user/dashboard.html", {"request": request})
-
-
-@app.get("/admin", response_class=HTMLResponse, include_in_schema=False)
-async def admin_dashboard(request: Request):
-    return templates.TemplateResponse("admin/dashboard.html", {"request": request})
 
 
 # ── CLI: create-admin ────────────────────────────────────────────────────────
